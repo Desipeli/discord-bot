@@ -7,6 +7,7 @@ from logger import setup_logging
 
 from cogs.greeting_cog import GreetingCog
 from cogs.gpt_cog import GPTCog
+from cogs.rust_twitch_cog import RustTwitchCog
 
 load_dotenv()
 setup_logging()
@@ -19,6 +20,7 @@ class BotClient(commands.Bot):
     async def on_ready(self):
         await self.add_cog(GreetingCog(self))
         await self.add_cog(GPTCog(self))
+        await self.add_cog(RustTwitchCog(self))
         logging.info(f"Bot client ready. Logged in as {self.user}")
 
     async def on_command_error(self, ctx, error):  # pylint: disable=arguments-differ
