@@ -1,15 +1,14 @@
 from discord.ext import commands
-import logging
+from discord import app_commands
+
 
 class GreetingCog(commands.Cog):
+    """ I will greet you """
+
     def __init__(self, bot):
         self.bot = bot
 
-    @commands.group(invoke_without_command=True)
-    async def greetings(self, ctx):
-        await ctx.send('This is the greetings group. Use `!greetings hello`.')
-
-    @greetings.command(name="hello")
-    async def greetings_hello(self, ctx):
-        logging.info("HELLO command triggered")
-        await ctx.send(f'Hello from GreetingCog, {ctx.author.mention}!')
+    @commands.command(name="greetings")
+    async def greetings(self, ctx: commands.Context):
+        """ hello for you """
+        await ctx.send(f"Hello {ctx.message.author}")
