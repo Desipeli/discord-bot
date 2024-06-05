@@ -3,7 +3,7 @@ from logging.handlers import RotatingFileHandler
 
 
 def setup_logging(
-        filename: str = "bot.log",
+        filename: str = "./data/logs/bot.log",
         backup_count: int = 5,
         max_bytes: int = 5*1024*1024):
 
