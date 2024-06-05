@@ -90,15 +90,15 @@ Next Rust Twitch drop event: {start_date} to {end_date}
 {round_title}
                                        """)
 
-                # Discord displays only 5 videos per message
-                video_links = ""
-                for i, video_link in enumerate(video_sources):
-                    i = i+1
-                    video_links += f"{video_link}\n"
-                    if i % 5 == 0:
-                        await channel.send(video_links)
-                        video_links = ""
-                await channel.send(video_links)
+                    # Discord displays only 5 videos per message
+                    video_links = ""
+                    for i, video_link in enumerate(video_sources):
+                        i = i+1
+                        video_links += f"{video_link}\n"
+                        if i % 5 == 0:
+                            await channel.send(video_links)
+                            video_links = ""
+                    await channel.send(video_links)
 
                 self.comingCampaignAlerted = True
             except Exception as e:
