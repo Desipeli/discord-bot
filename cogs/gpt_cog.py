@@ -26,11 +26,20 @@ class GPTCog(commands.Cog):
     @commands.command(name="gpt_system")
     async def gpt_system(self, ctx: commands.Context):
         """ Set role for chatGPT """
-        logging.info(f"gpt system: {ctx.message.content}")
         if ctx.channel.id not in self.channels:
             self.channels[ctx.channel.id] = GptMessages()
         self.channels[ctx.channel.id].role = ctx.message.content[11:]
         await ctx.send(f'Role set')
+
+    @commands.command(name="gpt_get_system")
+    async def gpt_get_system(self, ctx: commands.Context):
+        """ Get role for chatGPT """
+        channel_id = ctx.channel.id
+        if channel_id in self.channels:
+            role = self.channels[channel_id].role
+            await ctx.send(f"Role: {role}")
+        else:
+            await ctx.send("No role set for this channel.")
 
 
 class GptMessages:
@@ -45,7 +54,6 @@ class GptMessages:
         self.add_message({"role": "user", "content": message})
         messages_with_role = [self.__role.copy()]
         messages_with_role.extend(self.messages)
-        logging.info(f"MWR {messages_with_role}")
         chat = openai.chat.completions.create(
             model=self.model,
             messages=messages_with_role,
@@ -61,7 +69,7 @@ class GptMessages:
 
     @property
     def role(self):
-        return self.role
+        return self.__role["content"]
 
     @role.setter
     def role(self, role: str):
