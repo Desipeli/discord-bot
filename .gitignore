@@ -4,3 +4,4 @@ venv
 *.log
 *.tmp*
 channels.txt
+docker-compose.yml
