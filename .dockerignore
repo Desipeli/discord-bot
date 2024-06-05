@@ -1,0 +1,8 @@
+.env
+__pycache__
+venv
+*.log
+*.tmp*
+channels.txt
+docker-compose.yml
+Dockerfile
