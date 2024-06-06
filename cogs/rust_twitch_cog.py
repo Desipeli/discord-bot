@@ -1,4 +1,5 @@
 import datetime
+import json
 import logging
 import os
 import requests
@@ -9,6 +10,7 @@ from discord.ext import commands, tasks
 URL = "https://twitch.facepunch.com/"
 CHANNEL_LIST_FILE = "channels.txt"
 CHANNEL_LIST_FULL_PATH = os.path.join(RUST_TWITCH_DATA, CHANNEL_LIST_FILE)
+ALERTED_JSON = os.path.join(RUST_TWITCH_DATA, "alerted.json")
 
 
 class RustTwitchCog(commands.Cog):
@@ -18,8 +20,9 @@ class RustTwitchCog(commands.Cog):
         self.bot = bot
         self.alerting_channels = set()
         self.load_channels_from_file()
-        self.onGoingCampaignAlerted = False
-        self.comingCampaignAlerted = False
+        self.on_going_campaign_alerted = False
+        self.coming_campaign_alerted = False
+        self.load_alerted_json()
         self.checkForDrops.start()
 
     @commands.command(name="add_rust_twitch")
@@ -50,20 +53,20 @@ class RustTwitchCog(commands.Cog):
         soup = BeautifulSoup(response.text, features="html.parser")
         campaign = soup.find_all(class_="campaign")
         not_started = soup.find_all(class_="not-started")
-        if self.onGoingCampaignAlerted:
+        if self.on_going_campaign_alerted:
             if not campaign or not_started:
                 logging.info("Rust Twitch drop campaign ended")
-                self.onGoingCampaignAlerted = False
+                self.on_going_campaign_alerted = False
         else:
             if campaign and not not_started:
-                self.comingCampaignAlerted = False
+                self.coming_campaign_alerted = False
                 logging.info("Rust Twitch drop campaign started")
                 for channel_id in self.alerting_channels:
                     channel = self.bot.get_channel(channel_id)
                     await channel.send(f"Twitch drops {URL}")
-                self.onGoingCampaignAlerted = True
+                self.on_going_campaign_alerted = True
 
-        if not self.comingCampaignAlerted and campaign and not_started:
+        if not self.coming_campaign_alerted and campaign and not_started:
             try:
                 round_number = soup.find(class_="round-info-number").text
                 round_title = soup.find(class_="round-info-title").text
@@ -100,9 +103,10 @@ Next Rust Twitch drop event: {start_date} to {end_date}
                             video_links = ""
                     await channel.send(video_links)
 
-                self.comingCampaignAlerted = True
+                self.coming_campaign_alerted = True
             except Exception as e:
                 logging.error(e)
+        self.save_alerted_json()
 
     def load_channels_from_file(self):
         try:
@@ -120,3 +124,25 @@ Next Rust Twitch drop event: {start_date} to {end_date}
         except Exception as e:
             logging.error(e)
             raise Exception("Could not update channels")
+
+    def load_alerted_json(self):
+        if not os.path.exists(ALERTED_JSON):
+            return
+        try:
+            with open(ALERTED_JSON, "r") as f:
+                data = json.load(f)
+            self.on_going_campaign_alerted = data["onGoingCampaignAlerted"]
+            self.coming_campaign_alerted = data["comingCampaignAlerted"]
+        except Exception as e:
+            logging.error(f"Could load data from {ALERTED_JSON}, {e}")
+
+    def save_alerted_json(self):
+        data = {
+            "onGoingCampaignAlerted": self.on_going_campaign_alerted,
+            "comingCampaignAlerted": self.coming_campaign_alerted
+        }
+        try:
+            with open(ALERTED_JSON, "w", encoding="utf-8") as f:
+                json.dump(data, f, ensure_ascii=False, indent=4)
+        except Exception as e:
+            logging.error(f"Could not save data to {ALERTED_JSON}, {e}")
