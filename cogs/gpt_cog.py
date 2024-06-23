@@ -1,4 +1,5 @@
-import logging
+from cogs.utils import create_subcommand_response
+
 import os
 import openai
 from discord.ext import commands
@@ -13,26 +14,35 @@ class GPTCog(commands.Cog):
         self.bot = bot
         self.channels = {}
 
-    @commands.command(name="gpt")
-    async def gpt(self, ctx: commands.Context, value: str):
+    @commands.group(name="gpt", invoke_without_command=True)
+    async def gpt(self, ctx: commands.Context):
         """ Chat with chatGPT """
         if ctx.channel.id not in self.channels:
             self.channels[ctx.channel.id] = GptMessages()
         message = ctx.message.content[5:]
-        gpt: GptMessages = self.channels[ctx.channel.id]
-        reply = gpt.chat(message=message)
-        await ctx.send(reply)
+        if len(message) > 0:
+            gpt: GptMessages = self.channels[ctx.channel.id]
+            reply = gpt.chat(message=message)
+            await ctx.send(reply)
+        else:
+            subcommands = self.gpt.commands
+            response = create_subcommand_response(subcommands)
+            await ctx.send(response)
 
-    @commands.command(name="gpt_system")
-    async def gpt_system(self, ctx: commands.Context):
+    @gpt.command(
+        name="setrole",
+        description="Set new role for GPT")
+    async def set_role(self, ctx: commands.Context):
         """ Set role for chatGPT """
         if ctx.channel.id not in self.channels:
             self.channels[ctx.channel.id] = GptMessages()
-        self.channels[ctx.channel.id].role = ctx.message.content[11:]
+        self.channels[ctx.channel.id].role = ctx.message.content[12:]
         await ctx.send(f'Role set')
 
-    @commands.command(name="gpt_get_system")
-    async def gpt_get_system(self, ctx: commands.Context):
+    @gpt.command(
+        name="role",
+        description="Show current role")
+    async def role(self, ctx: commands.Context):
         """ Get role for chatGPT """
         channel_id = ctx.channel.id
         if channel_id in self.channels:

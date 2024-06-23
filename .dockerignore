@@ -6,3 +6,4 @@ venv
 channels.txt
 docker-compose.yml
 Dockerfile
+alerted.json

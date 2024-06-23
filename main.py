@@ -39,6 +39,5 @@ class BotClient(commands.Bot):
 if __name__ == "__main__":
     intents = discord.Intents.default()
     intents.message_content = True
-
     bot = BotClient(command_prefix="!", intents=intents)
     bot.run(os.getenv("DISCORD_TOKEN"))

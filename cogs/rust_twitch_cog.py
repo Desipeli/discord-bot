@@ -6,6 +6,7 @@ import requests
 from config import RUST_TWITCH_DATA
 from bs4 import BeautifulSoup
 from discord.ext import commands, tasks
+from cogs.utils import create_subcommand_response
 
 URL = "https://twitch.facepunch.com/"
 CHANNEL_LIST_FILE = "channels.txt"
@@ -25,8 +26,16 @@ class RustTwitchCog(commands.Cog):
         self.load_alerted_json()
         self.checkForDrops.start()
 
-    @commands.command(name="add_rust_twitch")
-    async def add_rust_twitch(self, ctx: commands.Context):
+    @commands.group(name="rust", invoke_without_command=True)
+    async def rust(self, ctx: commands.Context):
+        subcommands = self.rust.commands
+        response = create_subcommand_response(subcommands)
+        await ctx.send(response)
+
+    @rust.command(
+        name="observe_twitch_drops",
+        description="Alert this channel when a new twitch drop event is announced or has started.")
+    async def observe_twitch_drops(self, ctx: commands.Context):
         """ Alert this channel when new twitch drops are available """
         self.alerting_channels.add(ctx.channel.id)
         try:
@@ -36,7 +45,9 @@ class RustTwitchCog(commands.Cog):
             return
         await ctx.send(f"Alerting")
 
-    @commands.command(name="remove_rust_twitch")
+    @ rust.command(
+        name="stop_observing_twitch_drops",
+        description="Remove from the list of alerted channels")
     async def remove_rust_twitch(self, ctx: commands.Context):
         """ Remove from the list channels"""
         self.alerting_channels.remove(ctx.channel.id)
@@ -47,7 +58,7 @@ class RustTwitchCog(commands.Cog):
             return
         await ctx.send("Not alerting")
 
-    @tasks.loop(minutes=77)
+    @ tasks.loop(minutes=77)
     async def checkForDrops(self):
         response = requests.get(URL)
         soup = BeautifulSoup(response.text, features="html.parser")
@@ -80,28 +91,15 @@ class RustTwitchCog(commands.Cog):
                 end_date = datetime.datetime.fromtimestamp(date_ids[1])
                 end_date = end_date.strftime('%d-%m-%Y %H:%M')
 
-                video_sources = []
-                for video in soup.find_all('video'):
-                    for source in video.find_all('source'):
-                        video_sources.append(source['src'])
-
                 for channel_id in self.alerting_channels:
                     channel = self.bot.get_channel(channel_id)
                     await channel.send(f"""
-Next Rust Twitch drop event: {start_date} to {end_date}
+Next Rust Twitch drop event
+Begins: {start_date}
+Ends:   {end_date}
 {round_number}
 {round_title}
                                        """)
-
-                    # Discord displays only 5 videos per message
-                    video_links = ""
-                    for i, video_link in enumerate(video_sources):
-                        i = i+1
-                        video_links += f"{video_link}\n"
-                        if i % 5 == 0:
-                            await channel.send(video_links)
-                            video_links = ""
-                    await channel.send(video_links)
 
                 self.coming_campaign_alerted = True
             except Exception as e:

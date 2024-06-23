@@ -5,3 +5,4 @@ venv
 *.tmp*
 channels.txt
 docker-compose.yml
+alerted.json
