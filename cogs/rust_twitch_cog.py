@@ -1,4 +1,3 @@
-import datetime
 import json
 import logging
 import os
@@ -21,8 +20,7 @@ class RustTwitchCog(commands.Cog):
         self.bot = bot
         self.alerting_channels = set()
         self.load_channels_from_file()
-        self.on_going_campaign_alerted = False
-        self.coming_campaign_alerted = False
+        self.current_campaign = ""
         self.load_alerted_json()
         self.checkForDrops.start()
 
@@ -34,7 +32,7 @@ class RustTwitchCog(commands.Cog):
 
     @rust.command(
         name="observe_twitch_drops",
-        description="Alert this channel when a new twitch drop event is announced or has started.")
+        description="Alert this channel when a new twitch drop event has started.")
     async def observe_twitch_drops(self, ctx: commands.Context):
         """ Alert this channel when new twitch drops are available """
         self.alerting_channels.add(ctx.channel.id)
@@ -60,51 +58,22 @@ class RustTwitchCog(commands.Cog):
 
     @ tasks.loop(minutes=77)
     async def checkForDrops(self):
-        response = requests.get(URL)
-        soup = BeautifulSoup(response.text, features="html.parser")
-        campaign = soup.find_all(class_="campaign")
-        not_started = soup.find_all(class_="not-started")
-        if self.on_going_campaign_alerted:
-            if not campaign or not_started:
-                logging.info("Rust Twitch drop campaign ended")
-                self.on_going_campaign_alerted = False
-        else:
-            if campaign and not not_started:
-                self.coming_campaign_alerted = False
+        try:
+            response = requests.get(URL)
+            soup = BeautifulSoup(response.text, features="html.parser")
+            campaign = soup.find_all(class_="campaign")
+            not_started = soup.find_all(class_="not-started")
+            round_title = soup.find(class_="round-info-title")
+
+            if campaign and not not_started and round_title and self.current_campaign != round_title.text:
                 logging.info("Rust Twitch drop campaign started")
                 for channel_id in self.alerting_channels:
                     channel = self.bot.get_channel(channel_id)
                     await channel.send(f"Twitch drops {URL}")
-                self.on_going_campaign_alerted = True
-
-        if not self.coming_campaign_alerted and campaign and not_started:
-            try:
-                round_number = soup.find(class_="round-info-number").text
-                round_title = soup.find(class_="round-info-title").text
-
-                # Timestamps can be found from data-date-ids, format: randomstring-timestamp
-                date_ids = [
-                    int(span["data-date-id"].split("-")[1]) for span in soup.find_all("span", class_="date")]
-                start_date = datetime.datetime.fromtimestamp(
-                    date_ids[0])
-                start_date = start_date.strftime('%d-%m-%Y %H:%M')
-                end_date = datetime.datetime.fromtimestamp(date_ids[1])
-                end_date = end_date.strftime('%d-%m-%Y %H:%M')
-
-                for channel_id in self.alerting_channels:
-                    channel = self.bot.get_channel(channel_id)
-                    await channel.send(f"""
-Next Rust Twitch drop event
-Begins: {start_date}
-Ends:   {end_date}
-{round_number}
-{round_title}
-                                       """)
-
-                self.coming_campaign_alerted = True
-            except Exception as e:
-                logging.error(e)
-        self.save_alerted_json()
+                self.current_campaign = round_title.text
+            self.save_alerted_json()
+        except Exception as e:
+            logging.error(e)
 
     def load_channels_from_file(self):
         try:
@@ -129,15 +98,13 @@ Ends:   {end_date}
         try:
             with open(ALERTED_JSON, "r") as f:
                 data = json.load(f)
-            self.on_going_campaign_alerted = data["onGoingCampaignAlerted"]
-            self.coming_campaign_alerted = data["comingCampaignAlerted"]
+            self.current_campaign = data["roundTitle"]
         except Exception as e:
             logging.error(f"Could load data from {ALERTED_JSON}, {e}")
 
     def save_alerted_json(self):
         data = {
-            "onGoingCampaignAlerted": self.on_going_campaign_alerted,
-            "comingCampaignAlerted": self.coming_campaign_alerted
+            "roundTitle": self.current_campaign
         }
         try:
             with open(ALERTED_JSON, "w", encoding="utf-8") as f:
